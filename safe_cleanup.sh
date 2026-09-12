@@ -34,7 +34,7 @@ fi
 
 temp_file=$(mktemp)
 success=false
-trap ' if [ "$success" = false ]; then 
+trap 'if [ "$success" = false ]; then 
         echo "Script did not complete successfully, removing $temp_file."         
        fi 
        rm -rf "$temp_file" ' EXIT
