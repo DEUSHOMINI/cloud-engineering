@@ -44,15 +44,16 @@ trap ' if [ "$success" = false ]; then
 count_found=0
 count_removed=0
 
-
-while read -r -d '' file_name; do
-    echo "$file_name" >> "$temp_file"
+mapfile -d '' -t file_names < <(find "$directory_path" -type f -mtime +1 -print0)
+printf '%s\n' "${file_names[@]}" > "$temp_file"
+    for f in "${file_names[@]}" ; do
     if [ -z "$optional_arg" ]; then  
-        rm -rf -- "$file_name"
+        rm -f -- "$f"
         count_removed=$((count_removed+1))
     elif [ "$optional_arg" = --dry-run ] ;then 
         count_found=$((count_found+1))
     fi
+    done 
     
 
 done < <(find "$directory_path" -type f -mtime +1 -print0)
