@@ -17,13 +17,13 @@ if [ ! -d "$directory_path" ]; then
     exit 1 
 fi
 
-if [ ! -r "directory_path" ] || [ ! -x "directory_path" ] ; then
+if [ ! -r "$directory_path" ] || [ ! -x "$directory_path" ] ; then
     echo "Directory cannot be accessed. Not enough rights"
     exit 1
 fi
 
 if [ ${#contents[@]} -eq 0 ]; then
-    echo "Dirrectory is empty"  
+    echo "Directory is empty"  
     exit 1
 fi 
 
@@ -37,7 +37,7 @@ success=false
 trap 'if [ "$success" = false ]; then 
         echo "Script did not complete successfully, removing $temp_file."         
        fi 
-       rm -rf "$temp_file" ' EXIT
+       rm -f -- "$temp_file" ' EXIT
 
 
 
@@ -46,7 +46,7 @@ count_removed=0
 mapfile -d '' -t file_names < <(find "$directory_path" -type f -mtime +1 -print0)
 printf '%s\n' "${file_names[@]}" > "$temp_file"
     for f in "${file_names[@]}" ; do
-    if [ -z "$optional_arg" ]; then  
+    if [ "$optional_arg" != "--dry-run" ]; then  
         rm -f -- "$f"
         count_removed=$((count_removed+1))
     fi
