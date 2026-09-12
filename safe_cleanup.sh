@@ -17,7 +17,7 @@ if [ ! -d "$directory_path" ]; then
     exit 1 
 fi
 
-if ! ls "$directory_path" 2>&1 ; then
+if [ ! -r "directory_path" ] || [ ! -x "directory_path" ] ; then
     echo "Directory cannot be accessed. Not enough rights"
     exit 1
 fi
@@ -48,7 +48,7 @@ count_removed=0
 while read -r -d '' file_name; do
     echo "$file_name" >> "$temp_file"
     if [ -z "$optional_arg" ]; then  
-        rm -rf "$file_name"
+        rm -rf -- "$file_name"
         count_removed=$((count_removed+1))
     elif [ "$optional_arg" = --dry-run ] ;then 
         count_found=$((count_found+1))
