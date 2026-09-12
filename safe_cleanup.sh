@@ -41,7 +41,6 @@ trap ' if [ "$success" = false ]; then
 
 
 
-count_found=0
 count_removed=0
 
 mapfile -d '' -t file_names < <(find "$directory_path" -type f -mtime +1 -print0)
@@ -50,16 +49,11 @@ printf '%s\n' "${file_names[@]}" > "$temp_file"
     if [ -z "$optional_arg" ]; then  
         rm -f -- "$f"
         count_removed=$((count_removed+1))
-    elif [ "$optional_arg" = --dry-run ] ;then 
-        count_found=$((count_found+1))
     fi
     done 
     
-
-done < <(find "$directory_path" -type f -mtime +1 -print0)
-
 case "$optional_arg" in 
-    --dry-run) echo "[DRY-RUN] Would delete: $count_found files."; cat "$temp_file" ;;
+    --dry-run) echo "[DRY-RUN] Would delete: ${#file_names[@]} files."; cat "$temp_file" ;;
     "") cat "$temp_file"; echo "[DELETED] $count_removed files were removed." ;;
 esac
 success=true
