@@ -10,12 +10,13 @@ fi
 
 directory_path=$1 
 optional_arg=${2:-}
-contents=("$directory_path"/*)
 
 if [ ! -d "$directory_path" ]; then 
     echo "Usage: Provided path isn't a directory."
     exit 1 
 fi
+
+contents=("$directory_path"/*)
 
 if [ ! -r "$directory_path" ] || [ ! -x "$directory_path" ] ; then
     echo "Directory cannot be accessed. Not enough rights"
@@ -47,7 +48,7 @@ mapfile -d '' -t file_names < <(find "$directory_path" -type f -mtime +1 -print0
 printf '%s\n' "${file_names[@]}" > "$temp_file"
     for f in "${file_names[@]}" ; do
     if [ "$optional_arg" != "--dry-run" ]; then  
-        if rm -- "$f" && echo "$f" ; then 
+        if rm -- "$f" ; then 
         count_removed=$((count_removed+1))
         fi
     fi
