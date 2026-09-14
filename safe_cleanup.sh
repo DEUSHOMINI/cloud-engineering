@@ -3,7 +3,7 @@ shopt -s nullglob
 set -euo pipefail
 
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then 
-    echo "Usage: Wrong number of argumetns provided. At least one argument (directory path) has to be provided."
+    echo "Usage: Wrong number of arguments provided. At least one argument (directory path) has to be provided."
     exit 1
 fi
 
@@ -47,8 +47,9 @@ mapfile -d '' -t file_names < <(find "$directory_path" -type f -mtime +1 -print0
 printf '%s\n' "${file_names[@]}" > "$temp_file"
     for f in "${file_names[@]}" ; do
     if [ "$optional_arg" != "--dry-run" ]; then  
-        rm -f -- "$f"
+        if rm -- "$f" && echo "$f" ; then 
         count_removed=$((count_removed+1))
+        fi
     fi
     done 
     
