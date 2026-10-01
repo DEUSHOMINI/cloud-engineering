@@ -1,41 +1,80 @@
 #!/bin/bash
 set -euo pipefail
-if [ $# -ne 1 ]; then 
+
+validate_arguments() {
+   [ "$#" -eq 1 ]
+}
+
+if ! validate_arguments "$@" ; then
     echo "Usage: $0 <region>"
     exit 1
+fi
+
+validate_region_format() {
+    [[ "$1" =~ ^[a-z]+-[a-z]+-[0-9]+$ ]]
+}
+if ! validate_region_format "$1"; then 
+    echo "Error: Invalid region format. Expected something like 'us-east-1'."
+    exit 1
 fi 
-if [[ ! "$1" =~ ^[a-z]+-[a-z]+-[0-9]+$ ]]; then 
-    echo "Usage: Invalid region format. Expected something similar to 'us-east-1'"
-    exit 1
-fi
 
-aws_region="$1"
-region_found=false
-read -ra available_regions <<< "$(aws ec2 describe-regions --query 'Regions[].RegionName' --output text)"
-for region in "${available_regions[@]}" ; do 
-        if [[ "$region" == "$aws_region" ]]; then 
-        region_found=true
+get_regions () {
+aws ec2 describe-regions \
+    --all-regions \
+    --query 'Regions[].RegionName' \
+    --output text
+}
+
+# get_available_regions() {
+#     aws ec2 describe-regions --query 'Regions[].RegionName' --output text
+# }
+
+if ! regions="$(get_regions)" ; then 
+    echo "Error: Failed to retrieve AWS regions." >&2 
+    exit 1
+fi 
+
+read -ra available_regions <<< "$regions"
+
+validate_region_exists() {
+    local region
+    for region in "${available_regions[@]}" ; do 
+        if [[ "$1" == "$region" ]]; then 
+        return 0 
         fi
-done 
-if [[ "$region_found" == false ]]; then 
-    echo "Entered region doesn't exist"
+    done
+    return 1
+}
+if ! validate_region_exists "$1" ; then 
+    echo "Error: Region does not exist." >&2
     exit 1
 fi
+describe_instances() {
+    aws ec2 describe-instances --region "$1"
+}
 
-aws ec2 describe-instances --region "$aws_region" | jq -r '.Reservations[].Instances[] | 
-"Instance:
-    ID: \(.InstanceId)
-    Name: \((.Tags[]? | select(.Key == "Name") | .Value) // "N/A")
-    State: \(.State.Name // "N/A")
-    Type: \(.InstanceType)
-    AvailabilityZone: \(.Placement.AvailabilityZone)
-    NetworkInterfaces: 
-    \(
-        [
-        .NetworkInterfaces[] |
-        "   - PrivateIP: \(.PrivateIpAddress // "N/A")
-         PublicIP: \(.Association.PublicIp // "N/A")"
-        ] | join("\n")
-    )
----"
-'
+if ! describe_instances "$1" | jq -r --arg region "$1" '[.Reservations[].Instances[]] as $instances |
+    if ($instances | length) == 0 
+        then 
+        "No instances found in \($region)." 
+        else 
+        $instances[] | "Instance:
+        ID: \(.InstanceId)
+        Name: \((.Tags[]? | select(.Key == "Name") | .Value) // "N/A")
+        State: \(.State.Name // "N/A")
+        Type: \(.InstanceType)
+        AvailabilityZone: \(.Placement.AvailabilityZone)
+        NetworkInterfaces: 
+        \(
+            [
+            .NetworkInterfaces[] |
+            "   - PrivateIP: \(.PrivateIpAddress // "N/A")
+             PublicIP: \(.Association.PublicIp // "N/A")"
+            ] | join("\n")
+        )
+        ---"
+    end'; 
+then
+    echo "Error: Failed to describe EC2 instances." >&2
+    exit 1
+fi 

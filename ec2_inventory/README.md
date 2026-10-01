@@ -1,129 +1,166 @@
-# EC2 Inventory Script
+# EC2 Inventory
 
-A Bash script that retrieves and displays an inventory of Amazon EC2 instances in a specified AWS Region.
+A Bash script that retrieves and displays EC2 instance information for a specified AWS region.
 
-The script combines **Bash**, **AWS CLI**, and **jq** to query AWS resources, validate the requested region, and transform the returned JSON into a human-readable report.
+The script validates the region, queries AWS for EC2 instances, and formats the result using `jq`.
 
 ## Features
 
-- Validates the number of command-line arguments
-- Validates AWS Region format using Bash regular expressions
-- Verifies that the specified Region is available
-- Retrieves EC2 instances using the AWS CLI
-- Extracts:
+- Validates the number of command-line arguments.
+- Validates the AWS region format.
+- Checks whether the specified region exists.
+- Retrieves EC2 instance information using the AWS CLI.
+- Displays:
   - Instance ID
-  - Name tag
-  - Instance state
+  - Name
+  - State
   - Instance type
   - Availability Zone
   - Private IP address
   - Public IP address
-- Handles missing Name tags and public IP addresses
-- Supports instances with multiple network interfaces
-- Produces structured, human-readable output
+- Reports when a region contains no EC2 instances.
+- Preserves AWS API error messages.
+- Uses Bash exit statuses to distinguish successful and failed operations.
 
 ## Requirements
 
-- Linux or macOS
+The following tools must be installed and configured:
+
 - Bash
 - AWS CLI
-- jq
-- Configured AWS credentials with permission to call:
+- `jq`
+- Valid AWS credentials with permission to call:
   - `ec2:DescribeRegions`
   - `ec2:DescribeInstances`
 
-Verify the required tools:
-
-```bash
-aws --version
-jq --version
-```
-
-Verify your AWS credentials:
+Verify your AWS credentials with:
 
 ```bash
 aws sts get-caller-identity
 ```
 
-## Usage
+## Installation
+
+Clone or download the repository and enter the project directory:
+
+```bash
+cd ec2_inventory
+```
 
 Make the script executable:
 
 ```bash
-chmod +x lab13_ec2_inventory.sh
+chmod +x ec2_inventory.sh
 ```
 
-Run it by providing an AWS Region:
+## Usage
 
 ```bash
-./lab13_ec2_inventory.sh us-east-1
+./ec2_inventory.sh <region>
 ```
 
 Example:
 
+```bash
+./ec2_inventory.sh us-east-1
+```
+
+## Example: Instances Found
+
 ```text
 Instance:
-   ID: i-0123456789abcdef0
-   Name: aws_linux_1
-   State: running
-   Type: t3.micro
-   AvailabilityZone: us-east-1d
-   NetworkInterfaces:
-      - PrivateIP: 172.31.3.239
-        PublicIP: 3.85.211.208
----
+    ID: i-0ac48cf07c94a569b
+    Name: test_aws_linux
+    State: running
+    Type: t3.micro
+    AvailabilityZone: us-east-1b
+    NetworkInterfaces:
+       - PrivateIP: 172.31.24.82
+         PublicIP: 54.210.39.26
+    ---
 ```
 
-## How It Works
+## Example: No Instances
 
-The script performs the following steps:
+If the region exists and the AWS API request succeeds, but there are no EC2 instances:
 
-1. Checks that exactly one argument was provided.
-2. Validates the Region format using a Bash regular expression.
-3. Retrieves the list of available AWS Regions.
-4. Checks whether the requested Region exists in that list.
-5. Calls `aws ec2 describe-instances` for the selected Region.
-6. Pipes the JSON response to `jq`.
-7. Extracts and formats the relevant EC2 instance information.
-8. Displays the resulting inventory.
+```text
+No instances found in us-west-2.
+```
 
-## Technologies
+This is considered a successful operation and returns exit status `0`.
 
-- **Bash** — scripting, argument handling, arrays, loops, conditionals, regular expressions
-- **AWS CLI** — interaction with AWS EC2 APIs
-- **jq** — JSON parsing, filtering, transformation, and formatting
+## Error Handling
 
-## Example
+### Missing argument
 
 ```bash
-./lab13_ec2_inventory.sh us-east-1
+./ec2_inventory.sh
 ```
 
-The script can also be used to check another Region:
+Output:
+
+```text
+Usage: ./ec2_inventory.sh <region>
+```
+
+### Invalid or nonexistent region
 
 ```bash
-./lab13_ec2_inventory.sh us-west-2
+./ec2_inventory.sh us-post-2
 ```
 
-If the Region is syntactically valid but unavailable, the script exits with an error.
+Output:
 
-## Learning Objectives
+```text
+Error: Region does not exist.
+```
 
-This project was created as part of a practical Cloud Engineering learning path.
+The script exits with a non-zero status.
 
-The main objectives are:
+### AWS API errors
 
-- Practice Bash scripting for cloud automation
-- Work with command-line arguments
-- Use Bash arrays and loops
-- Validate user input with regular expressions
-- Work with AWS CLI output
-- Parse nested JSON using jq
-- Handle missing AWS resource attributes safely
-- Build readable command-line reports
+If AWS cannot execute the `DescribeInstances` request, the AWS CLI error is displayed and the script reports:
 
-## Security
+```text
+Error: Failed to describe EC2 instances.
+```
 
-The script does not contain AWS credentials or access keys.
+The script exits with a non-zero status.
 
-AWS authentication is handled through the AWS CLI configuration/environment. Never commit credentials, private keys, or other secrets to the repository.
+AWS errors are not replaced or interpreted by the script; the original AWS error is preserved.
+
+## Exit Status
+
+| Exit status | Meaning |
+|---:|---|
+| `0` | Successful operation |
+| `1` | Validation or AWS API error |
+
+A region containing no EC2 instances is still considered a successful operation and returns `0`.
+
+## Implementation
+
+The script uses:
+
+```bash
+set -euo pipefail
+```
+
+It separates the main tasks into Bash functions:
+
+- `validate_arguments`
+- `validate_region_format`
+- `get_regions`
+- `validate_region_exists`
+- `describe_instances`
+
+AWS JSON output is processed with `jq`.
+
+The script uses:
+
+```bash
+aws ec2 describe-regions --all-regions
+```
+
+to obtain the list of AWS regions. It does not separately evaluate `OptInStatus`; if a region exists but the account cannot perform the EC2 operation there, the AWS API error is allowed to reach the user.
